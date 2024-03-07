@@ -24,7 +24,8 @@ TwoStageClusterSampling <- function(
   else if (n > nPrime | n == nPrime) return("Error: n should be less than nPrime")
   # Check that the number of non-response per cluster 
   # does not exceed the sample size per cluster
-  else if (p <= 0 | p >= 1) return("Error: p should range exclusively between 0 and 1")
+  else if (any(p <= 0) | any(p >= 1)) return("Error: p should range exclusively between 0 and 1")
+  else if (!(length(p) == 1 | length(p) == n)) return("Error: p should either contain 1 or n entries")
   else if (!(length(mu) == ncol(Sigma)) | !(length(mu) == nrow(Sigma))) return("length of mu and dim of Sigma inconsistent")
   else {
     # Defining some of the derived constants needed in the various computations
@@ -233,65 +234,126 @@ TwoStageClusterSampling <- function(
     
     vYbarnm = f * sbsquare + 1/n *fm*swsquare
     
-    if (Procedure == 1){
-      if (Case == "A"){
-        mt1_bopt_num = 2*(f1*S01star + 1/n*fmr*S01bar) - 
-          mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
-          mean(Y)/mean(Z)*(f1*S12star + 1/n*fm*S12bar) +
-          mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+    if (length(p) == 1){
+      
+      if (Procedure == 1){
+        if (Case == "A"){
+          mt1_bopt_num = 2*(f1*S01star + 1/n*fmr*S01bar) - 
+            mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+            mean(Y)/mean(Z)*(f1*S12star + 1/n*fm*S12bar) +
+            mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+          
+          mt1_bopt_den = 2*(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
+            1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+            2*mean(X)/mean(Z)*(f1*S12star + 1/n*fm*S12bar)
+          
+          mt1_bopt = mt1_bopt_num / mt1_bopt_den
+          
+          MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
+            1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+            2*mt1_bopt*(f1*S01star + 1/n*fmr*S01bar) +
+            ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+            ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
+          
+        } else if (Case == "B"){
+          mt1_bopt_num = 2*(f*S01star + 1/n*fmr*S01bar) - 
+            mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+            mean(Y)/mean(Z)*(f*S12star + 1/n*fm*S12bar) +
+            mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+          
+          mt1_bopt_den = 2*((f + fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
+            1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+            2*mean(X)/mean(Z)*(f*S12star + 1/n*fm*S12bar)
+          
+          mt1_bopt = mt1_bopt_num / mt1_bopt_den
+          
+          MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *((f+ fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
+            1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+            2*mt1_bopt*(f*S01star + 1/n*fmr*S01bar) +
+            ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+            ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
+          
+        }
         
-        mt1_bopt_den = 2*(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
-          1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
-          2*mean(X)/mean(Z)*(f1*S12star + 1/n*fm*S12bar)
+      }else if (Procedure == 2){
+        mt1_bopt_num = mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) -
+          2/n*(fmPrimeR - fm)*S01bar
+        
+        mt1_bopt_den = 1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) -
+          2/n*(fmPrimeR - fm)*S1bar_2
         
         mt1_bopt = mt1_bopt_num / mt1_bopt_den
         
-        MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
-          1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
-          2*mt1_bopt*(f1*S01star + 1/n*fmr*S01bar) +
-          ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
-          ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
-        
-      } else if (Case == "B"){
-        mt1_bopt_num = 2*(f*S01star + 1/n*fmr*S01bar) - 
-          mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
-          mean(Y)/mean(Z)*(f*S12star + 1/n*fm*S12bar) +
-          mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
-        
-        mt1_bopt_den = 2*((f + fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
-          1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
-          2*mean(X)/mean(Z)*(f*S12star + 1/n*fm*S12bar)
-        
-        mt1_bopt = mt1_bopt_num / mt1_bopt_den
-        
-        MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *((f+ fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
-          1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
-          2*mt1_bopt*(f*S01star + 1/n*fmr*S01bar) +
-          ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
-          ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
-        
+        MT1opt = (f*S0Star_2 + 1/n*fm*S0bar_2) - mt1_bopt^2/n *(fmPrimeR - fm)*S1bar_2 +
+          1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
+          2*mt1_bopt/n*(fmPrimeR -fm)*S01bar -
+          mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
       }
       
-    }else if (Procedure == 2){
-      mt1_bopt_num = mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) -
-        2/n*(fmPrimeR - fm)*S01bar
+    } else{
       
-      mt1_bopt_den = 1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) -
-        2/n*(fmPrimeR - fm)*S1bar_2
+      if (Procedure == 1){
+        if (Case == "A"){
+          mt1_bopt_num = 2*(f1*S01star + 1/n*1/n*sum(drop(crossprod(fmr,S01i)))) - 
+            mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+            mean(Y)/mean(Z)*(f1*S12star + 1/n*fm*S12bar) +
+            mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+          
+          mt1_bopt_den = 2*(f1*S1Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S1i_2)))) +
+            1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+            2*mean(X)/mean(Z)*(f1*S12star + 1/n*fm*S12bar)
+          
+          mt1_bopt = mt1_bopt_num / mt1_bopt_den
+          
+          MT1opt = (f*S0Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S0i_2)))) + 
+            mt1_bopt^2 *(f1*S1Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S1i_2)))) +
+            1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+            2*mt1_bopt*(f1*S01star + 1/n*1/n*sum(drop(crossprod(fmr,S01i)))) +
+            ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+            ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
+          
+        } else if (Case == "B"){
+          mt1_bopt_num = 2*(f*S01star + 1/n*1/n*sum(drop(crossprod(fmr,S01i)))) - 
+            mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+            mean(Y)/mean(Z)*(f*S12star + 1/n*fm*S12bar) +
+            mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+          
+          mt1_bopt_den = 2*((f + fPrime)*S1Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S1i_2)))) +
+            1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+            2*mean(X)/mean(Z)*(f*S12star + 1/n*fm*S12bar)
+          
+          mt1_bopt = mt1_bopt_num / mt1_bopt_den
+          
+          MT1opt = (f*S0Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S0i_2)))) + 
+            mt1_bopt^2 *((f+ fPrime)*S1Star_2 + 1/n*1/n*sum(drop(crossprod(fmr,S1i_2)))) +
+            1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+            2*mt1_bopt*(f*S01star + 1/n*1/n*sum(drop(crossprod(fmr,S01i)))) +
+            ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+            ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
+          
+        }
+        
+      }else if (Procedure == 2){
+        mt1_bopt_num = mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) -
+          2/n*(1/n*sum(drop(crossprod(fmPrimeR, S01i))) - fm*S01bar)
+        
+        mt1_bopt_den = 1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) -
+          2/n*(1/n*sum(drop(crossprod(fmPrimeR, S1i_2))) - fm*S1bar_2)
+        
+        mt1_bopt = mt1_bopt_num / mt1_bopt_den
+        
+        MT1opt = (f*S0Star_2 + 1/n*fm*S0bar_2) - 
+          mt1_bopt^2/n *(1/n*sum(drop(crossprod(fmPrimeR, S1i_2))) - fm*S1bar_2) +
+          1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
+          2*mt1_bopt/n*(1/n*sum(drop(crossprod(fmPrimeR, S01i))) -fm*S01bar) -
+          mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
+      }
       
-      mt1_bopt = mt1_bopt_num / mt1_bopt_den
-      
-      MT1opt = (f*S0Star_2 + 1/n*fm*S0bar_2) - mt1_bopt^2/n *(fmPrimeR - fm)*S1bar_2 +
-        1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
-        2*mt1_bopt/n*(fmPrimeR -fm)*S01bar -
-        mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
     }
-    
-    
-    return (list(clustersY = clustersY, indexOfFinalSample = indexOfFinalSample, 
-                 indexOfFinalSample = indexOfFinalSample, sampledClustersY = sampledClustersY, Y = Y,
-                 vYbarnm = vYbarnm, MT1opt = MT1opt))
-    
+  
+  return (list(clustersY = clustersY, indexOfFinalSample = indexOfFinalSample, 
+               indexOfFinalSample = indexOfFinalSample, sampledClustersY = sampledClustersY, Y = Y,
+               vYbarnm = vYbarnm, MT1opt = MT1opt))
   }
 }
 
@@ -322,10 +384,10 @@ replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
 
 Sigma <- matrix(c(20, 0, 0, 0, 60, 0, 0, 0 , 10), 3,3)
 
-aa <- replicateSampling(nRep = 100, M = 15, N = 20, m = 7, 
-                        n = 5, p = .05, mPrime = 8,
+aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
+                        n = 5, p = c(.05, rep(.1, 4)), mPrime = 8,
                         nPrime = 7, mu = c(20, 50, 40), Sigma = Sigma,
-                        Case = "B", Procedure = 1, seed_num = 5431)
+                        Case = "B", Procedure = 2, seed_num = 541)
 
 aa
 
