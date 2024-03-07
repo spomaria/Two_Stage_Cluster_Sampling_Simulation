@@ -2,7 +2,7 @@
 # Two stage Cluster Sampling in the presence of 
 # Sampling Non-response
 
-# @param N is the number of clusters in the population
+# @param N is the number of clusters in the pop
 # @param n is the number of clusters to be sampled
 # @param M is the number of units in each cluster
 # @param r is the number of non-response (could vary across clusters or remain constant)
@@ -12,11 +12,11 @@
 # @param Case takes only two possible values: "A" or "B"
 
 TwoStageClusterSampling <- function(
-  M, N, m, n, r, mPrime, nPrime, mu, Sigma, Case  
-  ){
+    M, N, m, n, r, mPrime, nPrime, mu, Sigma, Case = "A", Procedure, seed_num=4113  
+){
   # Check that the number of clusters to be sampled does not 
-  # exceed the total number of clusters in the population
- if ( n > N | n == N) return("Error: n should be less than N")
+  # exceed the total number of clusters in the pop
+  if ( n > N | n == N) return("Error: n should be less than N")
   # Check that the number of units to be sampled per cluster 
   # does not exceed the cluster size
   else if (m > M | m == M) return("Error: m should be less than M")
@@ -38,33 +38,41 @@ TwoStageClusterSampling <- function(
     fmr = 1/(m * q + 2 * p) - 1/M
     fmPrimeR = 1/(mPrime * q + 2 * p) - 1/M
     
-    
     totalSim = M * N
-    # Simulating the entire population
+    # Simulating the entire pop
     # Load the 'MASS' library to enable us generate 
     # random numbers from a multivariate normal distribution
     library(MASS)
-    population = mvrnorm(totalSim, mu = mu, Sigma = Sigma)
+    #set.seed(seed_num)
+    pop = mvrnorm(totalSim, mu = mu, Sigma = Sigma)
     # detach the library after the simulation
     detach("package:MASS", unload = TRUE)
     
-    # Demarcation of the various clusters in the population
-    # We split the population into clusters by converting
-    # the population into a matrix where each column 
+    # Demarcation of the various clusters in the pop
+    # We split the pop into clusters by converting
+    # the pop into a matrix where each column 
     # represents a cluster
     # This is carried out for all three variables
-    clustersY = matrix(population[,1], ncol = N)
-    clustersX = matrix(population[,2], ncol = N)
-    clustersZ = matrix(population[,3], ncol = N)
+    
+    mu_y = mu[1]; mu_x = mu[2]; mu_z = mu[3]
+    sig_y = sqrt(Sigma[1,1]); sig_x = sqrt(Sigma[2,2]); sig_z = sqrt(Sigma[3,3]);
+    rho_xy = 0.7; rho_xz = 0.8
+    
+    clustersY = matrix(mu_y + sig_y *(rho_xy*pop[,2] + sqrt(1-rho_xy^2)*pop[,1]), ncol = N)
+    clustersX = matrix(mu_x + sig_x *pop[,2], ncol = N)
+    clustersZ = matrix(mu_z + sig_z *(rho_xz*pop[,2] + sqrt(1-rho_xz^2)*pop[,3]), ncol = N)
     
     # @clusterSpace is a sequence of numbers representing the index
     # of each of the clusters.
     clusterSpace = c(1:N)
     # @fsu1Clusters is a sequence of numbers corresponding to 
     # clusters to be sampled across all variables
-    fsu1Clusters = sample(clusterSpace, nPrime)
-    if (Case = "A") fsu2Clusters = sample(fsu1Clusters, n)
-    else if (Case = "B") fsu2Clusters = sample(clusterSpace, n)
+    
+    if (Case == "A") {
+      fsu1Clusters = sample(clusterSpace, nPrime)
+      fsuClusters = sample(fsu1Clusters, n)
+    }
+    else if (Case == "B") fsuClusters = sample(clusterSpace, n)
     # @sampledClusters is a matrix whose columns represent the sampled clusters
     # This refers to the first stage units (fsu) or primary stage units (psu)
     sampledClustersY = matrix(NA, ncol = n, nrow = M)
@@ -72,11 +80,11 @@ TwoStageClusterSampling <- function(
     sampledClustersZ = matrix(NA, ncol = n, nrow = M)
     for (i in 1:n){
       # The main variable Y
-      sampledClustersY[,i] = clustersY[,fsu2Clusters[i]]
+      sampledClustersY[,i] = clustersY[,fsuClusters[i]]
       # The auxiliary variable X
-      sampledClustersX[,i] = clustersX[,fsu2Clusters[i]]
+      sampledClustersX[,i] = clustersX[,fsuClusters[i]]
       # The auxiliary variable Z
-      sampledClustersZ[,i] = clustersZ[,fsu2Clusters[i]]
+      sampledClustersZ[,i] = clustersZ[,fsuClusters[i]]
     }
     
     # @sampleSpace is a sequence of numbers representing the index
@@ -84,7 +92,11 @@ TwoStageClusterSampling <- function(
     sampleSpace = c(1:M)
     # @indexSampleSpace is a sequence of numbers corresponding to 
     # units to be sampled in each cluster across all variables
-    indexOfSampleSpace = sample(sampleSpace, m)
+    if (Procedure ==1) indexOfSampleSpace = sample(sampleSpace, m)
+    else if (Procedure ==2){
+      ssu1Space = sample(sampleSpace, mPrime)
+      indexOfSampleSpace = sample(ssu1Space, m)
+    }
     # non-response space
     # To make this exercise more practical, we shall vary the index
     # of non-responsive units across the different clusters
@@ -133,53 +145,25 @@ TwoStageClusterSampling <- function(
     # the three variables are observed accordingly so that
     # there is no mixing of variables across selected units
     
-    if (Case == A){
-      # In case A, the second sample is drawn as a subset of the first sample 
-      for (i in 1:n){
-        # simulate a different non-response space for each cluster
-        nonresponseSpace = sample(indexOfSampleSpace, r)
+    for (i in 1:n){
+      # simulate a different non-response space for each cluster
+      nonresponseSpace = sample(indexOfSampleSpace, r)
+      
+      # vector (or set) of units that responded during sampling
+      response <- relcomp(indexOfSampleSpace, nonresponseSpace)
+      # since only 'n-r' responded to the exercise, we re-sample r units 
+      # from the 'n-r' that responded so that we end up with 'n' responses
+      # as planned i.e. (n-r) + r = n
+      indexOfFinalSample <- c(response, sample(response, r))
+      
+      for (j in 1:m){
         
-        # vector (or set) of units that responded during sampling
-        response <- relcomp(indexOfSampleSpace, nonresponseSpace)
-        # since only 'n-r' responded to the exercise, we re-sample r units 
-        # from the 'n-r' that responded so that we end up with 'n' responses
-        # as planned i.e. (n-r) + r = n
-        indexOfFinalSample <- c(response, sample(indexOfSampleSpace, r))
-        
-        for (j in 1:m){
-          
-          # The main variable Y
-          Y[j,i] = sampledClustersY[indexOfFinalSample[j],i]
-          # The auxiliary variable X
-          X[j,i] = sampledClustersX[indexOfFinalSample[j],i]
-          # The auxiliary variable Z
-          Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
-        }
-      }
-    } else{
-      # In case B, the second sample is drawn independent of the first sample
-      for (i in 1:n){
-        # simulate a different non-response space for each cluster
-        nonresponseSpace = sample(indexOfSampleSpace, r)
-        
-        # vector (or set) of units that responded during sampling
-        response <- relcomp(indexOfSampleSpace, nonresponseSpace)
-        # since only 'n-r' responded to the exercise, we re-sample r units 
-        # from the 'n-r' that responded so that we end up with 'n' responses
-        # as planned i.e. (n-r) + r = n
-        
-        # where the second sample is independent of the first sample
-        indexOfFinalSample <- c(response, sample(sampleSpace, r))
-        
-        for (j in 1:m){
-          
-          # The main variable Y
-          Y[j,i] = sampledClustersY[indexOfFinalSample[j],i]
-          # The auxiliary variable X
-          X[j,i] = sampledClustersX[indexOfFinalSample[j],i]
-          # The auxiliary variable Z
-          Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
-        }
+        # The main variable Y
+        Y[j,i] = sampledClustersY[indexOfFinalSample[j],i]
+        # The auxiliary variable X
+        X[j,i] = sampledClustersX[indexOfFinalSample[j],i]
+        # The auxiliary variable Z
+        Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
       }
     }
     
@@ -187,7 +171,7 @@ TwoStageClusterSampling <- function(
     # Components relating to variable Y
     S0i_2 <- c()
     for (i in 1:n){
-      S0i_2[i] = (Y[,i] - mean(Y[,i]))^2/(m-1)
+      S0i_2[i] = sum((Y[,i] - mean(Y[,i]))^2)/(m-1)
     }
     S0bar_2 <- mean(S0i_2)
     
@@ -195,12 +179,12 @@ TwoStageClusterSampling <- function(
     for (i in 1:n){
       Sibar[i] = mean(Y[,i])
     }
-    S0_2 <- sum(Sibar - mean(Y))^2/(n-1)
+    S0Star_2 <- sum((Sibar - mean(Y))^2)/(n-1)
     
     # Components relating to variable X
     S1i_2 <- c()
     for (i in 1:n){
-      S1i_2[i] = (X[,i] - mean(X[,i]))^2/(m-1)
+      S1i_2[i] = sum((X[,i] - mean(X[,i]))^2)/(m-1)
     }
     S1bar_2 <- mean(S1i_2)
     
@@ -208,12 +192,12 @@ TwoStageClusterSampling <- function(
     for (i in 1:n){
       Sxibar[i] = mean(X[,i])
     }
-    S1_2 <- sum(Sxibar - mean(X))^2/(n-1)
+    S1Star_2 <- sum((Sxibar - mean(X))^2)/(n-1)
     
     # Components relating to variable Z
     S2i_2 <- c()
     for (i in 1:n){
-      S2i_2[i] = (Z[,i] - mean(Z[,i]))^2/(m-1)
+      S2i_2[i] = sum((Z[,i] - mean(Z[,i]))^2)/(m-1)
     }
     S2bar_2 <- mean(S2i_2)
     
@@ -221,44 +205,48 @@ TwoStageClusterSampling <- function(
     for (i in 1:n){
       Szibar[i] = mean(Z[,i])
     }
-    S2_2 <- sum(Szibar - mean(Z))^2/(n-1)
+    S2Star_2 <- sum((Szibar - mean(Z))^2)/(n-1)
     
     # Components relating to variables Y and X
     S01i <- c()
     for (i in 1:n){
-      S01i[i] = sum(prod((Y[,i] - mean(Y[,i])), (X[,i] - mean(X[,i]))))/(m-1)
+      #elems <- c()
+      #for (j in 1:m){
+      #  elems[j] = prod((Y[j,i] - mean(Y[,i])), (X[j,i] - mean(X[,i])))
+      #}
+      S01i[i] = sum(drop(crossprod((Y[j,i] - mean(Y[,i])), (X[j,i] - mean(X[,i])))))/(m-1)
     }
     S01bar <- mean(S01i)
     
     S01istar <- c()
     for (i in 1:n){
-      S01istar[i] = prod((mean(Y[,i]) - mean(Y)), (mean(X[,i]) - mean(X)))
+      S01istar[i] = drop(crossprod((mean(Y[,i]) - mean(Y)), (mean(X[,i]) - mean(X))))
     }
     S01star <- sum(S01istar)/(n-1)
     
     # Components relating to variables Y and Z
     S02i <- c()
-    for (i in 1:n){
-      S02i[i] = sum(prod((Y[,i] - mean(Y[,i])), (Z[,i] - mean(Z[,i]))))/(m-1)
+    for (i in 1:m){
+      S02i[i] = sum(drop(crossprod((Y[,i] - mean(Y[,i])), (Z[,i] - mean(Z[,i])))))/(m-1)
     }
     S02bar <- mean(S02i)
     
     S02istar <- c()
-    for (i in 1:n){
-      S02istar[i] = prod((mean(Y[,i]) - mean(Y)), (mean(Z[,i]) - mean(Z)))
+    for (i in 1:m){
+      S02istar[i] = drop(crossprod((mean(Y[,i]) - mean(Y)), (mean(Z[,i]) - mean(Z))))
     }
     S02star <- sum(S02istar)/(n-1)
     
     # Components relating to variables X and Z
     S12i <- c()
-    for (i in 1:n){
-      S12i[i] = sum(prod((X[,i] - mean(X[,i])), (Z[,i] - mean(Z[,i]))))/(m-1)
+    for (i in 1:m){
+      S12i[i] = sum(drop(crossprod((X[,i] - mean(X[,i])), (Z[,i] - mean(Z[,i])))))/(m-1)
     }
     S12bar <- mean(S12i)
     
     S12istar <- c()
-    for (i in 1:n){
-      S12istar[i] = prod((mean(X[,i]) - mean(X)), (mean(Z[,i]) - mean(Z)))
+    for (i in 1:m){
+      S12istar[i] = drop(crossprod((mean(X[,i]) - mean(X)), (mean(Z[,i]) - mean(Z))))
     }
     S12star <- sum(S12istar)/(n-1)
     
@@ -279,18 +267,100 @@ TwoStageClusterSampling <- function(
     
     vYbarnm = f * sbsquare + 1/n *fm*swsquare
     
+    if (Procedure == 1){
+      if (Case == "A"){
+        mt1_bopt_num = 2*(f1*S01star + 1/n*fmr*S01bar) - 
+          mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+          mean(Y)/mean(Z)*(f1*S12star + 1/n*fm*S12bar) +
+          mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+        
+        mt1_bopt_den = 2*(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
+          1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+          2*mean(X)/mean(Z)*(f1*S12star + 1/n*fm*S12bar)
+        
+        mt1_bopt = mt1_bopt_num / mt1_bopt_den
+        
+        MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *(f1*S1Star_2 + 1/n*fmr*S1bar_2) +
+          1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+          2*mt1_bopt*(f1*S01star + 1/n*fmr*S01bar) +
+          ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+          ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
+        
+      } else if (Case == "B"){
+        mt1_bopt_num = 2*(f*S01star + 1/n*fmr*S01bar) - 
+          mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
+          mean(Y)/mean(Z)*(f*S12star + 1/n*fm*S12bar) +
+          mean(Y)*mean(X)/(2*mean(Z)^2)*(f*S2Star_2 + 1/n*fm*S2bar_2)
+        
+        mt1_bopt_den = 2*((f + fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
+          1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) -
+          2*mean(X)/mean(Z)*(f*S12star + 1/n*fm*S12bar)
+        
+        mt1_bopt = mt1_bopt_num / mt1_bopt_den
+        
+        MT1opt = (f*S0Star_2 + 1/n*fmr*S0bar_2) + mt1_bopt^2 *((f+ fPrime)*S1Star_2 + 1/n*fmr*S1bar_2) +
+          1/4*((mean(Y) - mt1_bopt*mean(X))/mean(Z))^2*(f*S2Star_2 + 1/n*fm*S2bar_2) - 
+          2*mt1_bopt*(f*S01star + 1/n*fmr*S01bar) +
+          ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
+          ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
+        
+      }
+      
+    }else if (Procedure == 2){
+      mt1_bopt_num = mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) -
+        2/n*(fmPrimeR - fm)*S01bar
+      
+      mt1_bopt_den = 1/2*(mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) -
+        2/n*(fmPrimeR - fm)*S1bar_2
+      
+      mt1_bopt = mt1_bopt_num / mt1_bopt_den
+      
+      MT1opt = (f*S0Star_2 + 1/n*fm*S0bar_2) - mt1_bopt^2/n *(fmPrimeR - fm)*S1bar_2 +
+        1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
+        2*mt1_bopt/n*(fmPrimeR -fm)*S01bar -
+        mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
+    }
+    
+    
     return (list(clustersY = clustersY, indexOfSampleSpace = indexOfSampleSpace, 
-                indexOfFinalSample = indexOfFinalSample, sampledClustersY = sampledClustersY, Y = Y,
-                 vYbarnm = vYbarnm))
+                 indexOfFinalSample = indexOfFinalSample, sampledClustersY = sampledClustersY, Y = Y,
+                 vYbarnm = vYbarnm, MT1opt = MT1opt))
+    
   }
 }
 
-Sigma <- matrix(c(50, 2, 3, 2, 100, 7, 3, 7 , 50), 3,3)
+# This function performs the task multiple times and takes the average
+replicateSampling <- function(nRep, M, N, m, n, r, mPrime,
+                              nPrime, mu, Sigma,
+                              Case, Procedure, seed_num =4113){
+  vYbarnm_list = c()
+  MT1opt_list = c()
+  
+  set.seed(seed_num)
+  for (i in 1:nRep){
+    rep_i = TwoStageClusterSampling(M, N, m, n, r, mPrime,
+                                    nPrime, mu, Sigma,
+                                    Case, Procedure, seed_num)
+    vYbarnm_list[i] = rep_i$vYbarnm
+    MT1opt_list[i] = rep_i$MT1opt
+    
+  }
+  PRE = mean(vYbarnm_list)/mean(MT1opt_list)*100
+  LOSS = (mean(MT1opt_list) - mean(vYbarnm_list))/mean(MT1opt_list)*100
+  
+  return(c(list(vYbarnm = mean(vYbarnm_list), MT1opt = mean(MT1opt_list),
+                vYbarnm_list = vYbarnm_list[1:10], 
+                MT1opt_list = MT1opt_list[1:10], anyNegative = any(MT1opt_list<0),
+                PRE = PRE, LOSS = LOSS)))
+}
 
-a <- TwoStageClusterSampling(M = 15, N = 20, m = 7, n = 7, r = 2, mPrime = 5,
-                             nPrime = 6, p = 0.5, mu = c(10, 50, 20),
-                             Sigma = Sigma)
-a
-a$fsu2Clusters
-a$clusters
-a$sampledClusters
+Sigma <- matrix(c(50, 0, 0, 0, 100, 0, 0, 0 , 50), 3,3)
+
+aa <- replicateSampling(nRep = 100, M = 25, N = 20, m = 7, 
+                        n = 8, r = 2, mPrime = 12,
+                        nPrime = 10, mu = c(20, 50, 40), Sigma = Sigma,
+                        Case = "A", Procedure = 2, seed_num = 541)
+
+aa
+
+
