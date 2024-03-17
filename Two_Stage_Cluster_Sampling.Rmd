@@ -1,3 +1,19 @@
+---
+title: "Two Stage Cluster Sampling Simulation Results"
+author: "Nengak Emmanuel Goltong"
+date: "2024-03-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Simulation Results
+
+
+```{r TwoStageClusterSampling, results='hide'}
+
 # This script is meant to run simulation for 
 # Two stage Cluster Sampling in the presence of 
 # Sampling Non-response
@@ -696,6 +712,11 @@ TwoStageClusterSampling <- function(
   }
 }
 
+
+```
+
+```{r replicateSampling, results='hide'}
+
 # This function performs the sampling task multiple times and takes the average
 replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
                               nPrime, mu, Sigma,
@@ -734,18 +755,8 @@ replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
                 anyNegative_Ibro = any(MT2opt_list<0), Rel_Performance = Rel_Performance)))
 }
 
-Sigma <- matrix(c(20, 0, 0, 0, 0, 0, 
-                  0, 60, 0, 0, 0, 0, 
-                  0, 0, 10, 0, 0, 0,
-                  0, 0, 0, 5, 0, 0,
-                  0, 0, 0, 0, 3, 0,
-                  0, 0, 0, 0, 0, 7), 6,6)
+```
 
-aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
-                        n = 5, p = .05, mPrime = 8,
-                        nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
-                        Case = "A", Procedure = 1, seed_num = 531)
+```{r tableOfResults}
 
-aa
-
-
+```
