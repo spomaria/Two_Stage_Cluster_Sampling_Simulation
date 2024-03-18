@@ -742,9 +742,9 @@ Sigma <- matrix(c(20, 0, 0, 0, 0, 0,
                   0, 0, 0, 0, 0, 7), 6,6)
 
 aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
-                        n = 4, p = c(0.1, 0.15, rep(0.05, 2)), mPrime = 8,
+                        n = 5, p = 0.2, mPrime = 8,
                         nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
-                        Case = "A", Procedure = 1, seed_num = 531)
+                        Case = "B", Procedure = 2, seed_num = 531)
 
 aa
 

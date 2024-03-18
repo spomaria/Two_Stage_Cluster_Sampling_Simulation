@@ -360,6 +360,27 @@ Results</h1>
 
 <div id="simulation-results" class="section level2">
 <h2>Simulation Results</h2>
+<p>This simulation exercise consist of the following steps:</p>
+<ol style="list-style-type: decimal">
+<li><p>Six independent variables (normally distributed) are simulated (a
+total of N times M)</p></li>
+<li><p>The simulated data is then split into M distinct clusters each of
+size N. The variables Y, X and Z are constructed following the
+relationship defined in the work of Maji et al. only that here, the
+error component is added.</p></li>
+<li><p>A random sample of m (or m’ then m) clusters is selected out of
+the M total clusters. This is called the first sampled units
+(fsu).</p></li>
+<li><p>A random sample of n (or n’ then n) units are sampled from each
+of m selected clusters. This is called the second sampled units
+(ssu).</p></li>
+<li><p>All the different estimators of the Mean Square Error are
+calculated based on the observed data and compared.</p></li>
+<li><p>Steps 3 to 5 are repeated a hundred times for each specific case
+and the estimates of Mean Square Error are all saved in arrays after
+which the means are calculated and compared.</p></li>
+<li><p>Coding can be fun and challenging. What do you think?</p></li>
+</ol>
 <div id="table-1.-artificial-population-study-when-r-is-not-varying" class="section level3">
 <h3>Table 1. Artificial Population study (when r is not varying)</h3>
 <p>Case A, Procedure I (N = 10, M = 10, n’ = 7, n = 5, m = 7)</p>
@@ -502,10 +523,10 @@ Results</h1>
 <tr class="even">
 <td align="center">0.2</td>
 <td align="center">0.8</td>
-<td align="center"></td>
-<td align="center"></td>
-<td align="center"></td>
-<td align="center"></td>
+<td align="center">1767.786</td>
+<td align="center">264.3053</td>
+<td align="center">-1667.786</td>
+<td align="center">-164.3053</td>
 </tr>
 </tbody>
 </table>
@@ -614,6 +635,264 @@ Results</h1>
 <td align="center">253.6213</td>
 <td align="center">-174.8001</td>
 <td align="center">-153.6213</td>
+</tr>
+<tr class="even">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.15</td>
+<td align="center">0.85</td>
+<td align="center">271.5271</td>
+<td align="center">253.2227</td>
+<td align="center">-171.5271</td>
+<td align="center">-153.2227</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="table-5.-artificial-population-study-when-r-is-varying" class="section level3">
+<h3>Table 5. Artificial Population study (when r is varying)</h3>
+<p>Case B, Procedure I (N = 10, M = 10, n’ = 7, n = 4, m = 7)</p>
+<table>
+<colgroup>
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="9%" />
+<col width="15%" />
+<col width="12%" />
+<col width="16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="center">p1</th>
+<th align="center">q1</th>
+<th align="center">p2</th>
+<th align="center">q2</th>
+<th align="center">p3</th>
+<th align="center">q3</th>
+<th align="center">p4</th>
+<th align="center">q4</th>
+<th align="center">PRE_Maji</th>
+<th align="center">PRE_Ibrahim</th>
+<th align="center">LOSS_Maji</th>
+<th align="center">LOSS_Ibrahim</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">293.0767</td>
+<td align="center">265.191</td>
+<td align="center">-193.0767</td>
+<td align="center">-165.191</td>
+</tr>
+<tr class="even">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">292.7693</td>
+<td align="center">264.9849</td>
+<td align="center">-192.7693</td>
+<td align="center">-164.9849</td>
+</tr>
+<tr class="odd">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">290.5565</td>
+<td align="center">264.5681</td>
+<td align="center">-190.5565</td>
+<td align="center">-164.5681</td>
+</tr>
+<tr class="even">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">287.7565</td>
+<td align="center">263.9043</td>
+<td align="center">-187.7565</td>
+<td align="center">-163.9043</td>
+</tr>
+<tr class="odd">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.15</td>
+<td align="center">0.85</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">287.5897</td>
+<td align="center">263.2503</td>
+<td align="center">-187.5897</td>
+<td align="center">-163.2503</td>
+</tr>
+<tr class="even">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.15</td>
+<td align="center">0.85</td>
+<td align="center">283.4256</td>
+<td align="center">263.4702</td>
+<td align="center">-183.4256</td>
+<td align="center">-163.4702</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="table-6.-artificial-population-study-when-r-is-varying" class="section level3">
+<h3>Table 6. Artificial Population study (when r is varying)</h3>
+<p>Procedure II (N = 10, M = 10, n = 4, m’ = 8, m = 7)</p>
+<table>
+<colgroup>
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="5%" />
+<col width="9%" />
+<col width="15%" />
+<col width="12%" />
+<col width="16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="center">p1</th>
+<th align="center">q1</th>
+<th align="center">p2</th>
+<th align="center">q2</th>
+<th align="center">p3</th>
+<th align="center">q3</th>
+<th align="center">p4</th>
+<th align="center">q4</th>
+<th align="center">PRE_Maji</th>
+<th align="center">PRE_Ibrahim</th>
+<th align="center">LOSS_Maji</th>
+<th align="center">LOSS_Ibrahim</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">266.1098</td>
+<td align="center">122.7567</td>
+<td align="center">-166.1098</td>
+<td align="center">-22.75673</td>
+</tr>
+<tr class="even">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">266.8984</td>
+<td align="center">122.7514</td>
+<td align="center">-166.8984</td>
+<td align="center">-22.75141</td>
+</tr>
+<tr class="odd">
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">269.011</td>
+<td align="center">128.5508</td>
+<td align="center">-169.011</td>
+<td align="center">-28.55079</td>
+</tr>
+<tr class="even">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">272.7992</td>
+<td align="center">136.7851</td>
+<td align="center">-172.7992</td>
+<td align="center">-36.7851</td>
+</tr>
+<tr class="odd">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.15</td>
+<td align="center">0.85</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">0.05</td>
+<td align="center">0.95</td>
+<td align="center">271.8519</td>
+<td align="center">134.3659</td>
+<td align="center">-171.8519</td>
+<td align="center">-34.3659</td>
+</tr>
+<tr class="even">
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.1</td>
+<td align="center">0.9</td>
+<td align="center">0.15</td>
+<td align="center">0.85</td>
+<td align="center">280.343</td>
+<td align="center">159.5629</td>
+<td align="center">-180.343</td>
+<td align="center">-59.5629</td>
 </tr>
 </tbody>
 </table>
