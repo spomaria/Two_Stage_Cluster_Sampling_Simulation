@@ -2,7 +2,9 @@
 title: "Two Stage Cluster Sampling Simulation Results"
 author: "Nengak Emmanuel Goltong"
 date: "2024-03-17"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -12,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Simulation Results
 
 
-```{r TwoStageClusterSampling, results='hide'}
+```{r TwoStageClusterSampling, results='hide', echo=FALSE}
 
 # This script is meant to run simulation for 
 # Two stage Cluster Sampling in the presence of 
@@ -715,7 +717,7 @@ TwoStageClusterSampling <- function(
 
 ```
 
-```{r replicateSampling, results='hide'}
+```{r replicateSampling, results='hide', echo=FALSE}
 
 # This function performs the sampling task multiple times and takes the average
 replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
@@ -757,6 +759,62 @@ replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
 
 ```
 
-```{r tableOfResults}
+```{r tableOfResults, results='hide', echo=FALSE}
+Sigma <- matrix(c(20, 0, 0, 0, 0, 0, 
+                  0, 60, 0, 0, 0, 0, 
+                  0, 0, 10, 0, 0, 0,
+                  0, 0, 0, 5, 0, 0,
+                  0, 0, 0, 0, 3, 0,
+                  0, 0, 0, 0, 0, 7), 6,6)
+
+aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
+                        n = 4, p = c(0.1, 0.15, rep(0.05, 2)), mPrime = 8,
+                        nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
+                        Case = "A", Procedure = 1, seed_num = 531)
+
+aa
 
 ```
+
+### Table 1. Artificial Population study (when r is not varying)
+Case A, Procedure I (N = 10, M = 10, n' = 7, n = 5, m = 7)
+
+| p | q | PRE_Maji | PRE_Ibrahim | LOSS_Maji | LOSS_Ibrahim |
+|:---: | :---: | :------: | :-----------: | :---------: | :------------: |
+|0.05|0.95|240.7166| 247.7131 | -140.7166 | -147.7131 |
+|0.1 |0.9 |234.2475| 254.8227 | -134.2475 | -154.8227 |
+|0.15|0.85|227.8759| 266.1662 | -127.8759 | -166.1662 |
+|0.2 |0.8 |221.5513| 280.8098 | -121.5513 | -180.8098 |
+
+### Table 2. Artificial Population study (when r is not varying)
+Case B, Procedure I (N = 10, M = 10, n' = 7, n = 5, m = 7)
+
+| p | q | PRE_Maji | PRE_Ibrahim | LOSS_Maji | LOSS_Ibrahim |
+|:---: | :---: | :------: | :-----------: | :---------: | :------------: |
+|0.05|0.95|287.1852| 309.8038 | -187.1852 | -209.8038 |
+|0.1 |0.9 |276.1314| 325.5487 | -176.1314 | -225.5487 |
+|0.15|0.85|265.463 | 344.4662 | -165.463  | -244.4662 |
+|0.2 |0.8 |255.1155| 367.6047 | -155.1155 | -267.6047 |
+
+
+### Table 3. Artificial Population study (when r is not varying)
+Procedure II (N = 10, M = 10, n = 5, m' = 8, m = 7)
+
+| p | q | PRE_Maji | PRE_Ibrahim | LOSS_Maji | LOSS_Ibrahim |
+|:---: | :---: | :------: | :-----------: | :---------: | :------------: |
+|0.05|0.95|228.7942| 120.1068 | -128.7942 | -20.10682 |
+|0.1 |0.9 |234.1931| 148.4815 | -134.1931 | -48.48153 |
+|0.15|0.85|253.0895| 211.4755 | -153.0895 | -111.4755 |
+|0.2 |0.8 | |   |   |   |
+
+
+### Table 4. Artificial Population study (when r is varying)
+Case A, Procedure I (N = 10, M = 10, n' = 7, n = 4, m = 7)
+
+| p1 | q1 | p2 | q2 | p3 | q3 | p4 | q4 | PRE_Maji | PRE_Ibrahim | LOSS_Maji | LOSS_Ibrahim |
+|:---: | :---:|:---: | :---:|:---: | :---:|:---: | :---: | :------: | :-----------: | :---------: | :------------: |
+|0.05|0.95|0.05|0.95|0.05|0.95|0.1|0.9|278.6145| 254.9173 | -178.6145 | -154.9173 |
+|0.05|0.95|0.05|0.95|0.1|0.9|0.05|0.95|278.7064| 255.0313 | -178.7064 | -155.0313 |
+|0.05|0.95|0.05|0.95|0.1|0.9|0.1|0.9|276.8989| 254.4278 | -176.8989 | -154.4278 |
+|0.1|0.9|0.1|0.9|0.1|0.9|0.05|0.95|275.0897| 254.0803 | -175.0897 | -154.0803 |
+|0.1|0.9|0.15|0.85|0.05|0.95|0.05|0.95|274.8001| 253.6213| -174.8001 | -153.6213 |
