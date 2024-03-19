@@ -18,7 +18,7 @@
 
 TwoStageClusterSampling <- function(
     M, N, m, n, p, mPrime, nPrime, mu, Sigma, Case = "A", Procedure, seed_num=4113,
-    m_error = TRUE, aux_param_option = 1
+    m_error = TRUE, aux_param_option = 1, data_matrix = NA
 ){
   # Check that the number of clusters to be sampled does not 
   # exceed the total number of clusters in the pop
@@ -33,6 +33,7 @@ TwoStageClusterSampling <- function(
   else if (any(p <= 0) | any(p >= 1)) return("Error: p should range exclusively between 0 and 1")
   else if (!(length(p) == 1 | length(p) == n)) return("Error: p should either contain 1 or n entries")
   else if (!(length(mu) == ncol(Sigma)) | !(length(mu) == nrow(Sigma))) return("length of mu and dim of Sigma inconsistent")
+  #else if (!(is.na(data_matrix) | ncol(data_matrix) == 3)) return("Error: data_matrix should have 3 columns if it exists")
   else {
     # --- Defining some of the derived constants needed in the various computations
     #p = r/m
@@ -45,33 +46,44 @@ TwoStageClusterSampling <- function(
     fmr = 1/(m * q + 2 * p) - 1/M
     fmPrimeR = 1/(mPrime * q + 2 * p) - 1/M
     
-    totalSim = M * N
-    # Simulating the entire pop
-    # Load the 'MASS' library to enable us generate 
-    # random numbers from a multivariate normal distribution
-    library(MASS)
-    #set.seed(seed_num)
-    pop = mvrnorm(totalSim, mu = mu, Sigma = Sigma)
-    # detach the library after the simulation
-    detach("package:MASS", unload = TRUE)
-    
-    # Demarcation of the various clusters in the pop
-    # We split the pop into clusters by converting
-    # the pop into a matrix where each column 
-    # represents a cluster
-    # This is carried out for all three variables
-    
-    mu_y = mu[1]; mu_x = mu[2]; mu_z = mu[3]
-    sig_y = sqrt(Sigma[1,1]); sig_x = sqrt(Sigma[2,2]); sig_z = sqrt(Sigma[3,3]);
-    rho_xy = 0.7; rho_xz = 0.8
-    
-    clustersY = matrix(mu_y + sig_y *(rho_xy*pop[,2] + sqrt(1-rho_xy^2)*pop[,1]) + pop[,4], ncol = N)
-    clustersX = matrix(mu_x + sig_x *pop[,2] + pop[,5], ncol = N)
-    clustersZ = matrix(mu_z + sig_z *(rho_xz*pop[,2] + sqrt(1-rho_xz^2)*pop[,3]) + pop[,6], ncol = N)
-    # creating the errors relating to the variables
-    clustersU = matrix(pop[,4], ncol = N)
-    clustersV = matrix(pop[,5], ncol = N)
-    clustersW = matrix(pop[,6], ncol = N)
+    if (is.na(data_matrix)){
+      # Where no real life data is provided, the computer simulates data from the 
+      # normal distribution
+      totalSim = M * N
+      # Simulating the entire pop
+      # Load the 'MASS' library to enable us generate 
+      # random numbers from a multivariate normal distribution
+      library(MASS)
+      #set.seed(seed_num)
+      pop = mvrnorm(totalSim, mu = mu, Sigma = Sigma)
+      # detach the library after the simulation
+      detach("package:MASS", unload = TRUE)
+      
+      # Demarcation of the various clusters in the pop
+      # We split the pop into clusters by converting
+      # the pop into a matrix where each column 
+      # represents a cluster
+      # This is carried out for all three variables
+      
+      mu_y = mu[1]; mu_x = mu[2]; mu_z = mu[3]
+      sig_y = sqrt(Sigma[1,1]); sig_x = sqrt(Sigma[2,2]); sig_z = sqrt(Sigma[3,3]);
+      rho_xy = 0.7; rho_xz = 0.8
+      
+      clustersY = matrix(mu_y + sig_y *(rho_xy*pop[,2] + sqrt(1-rho_xy^2)*pop[,1]) + pop[,4], ncol = N)
+      clustersX = matrix(mu_x + sig_x *pop[,2] + pop[,5], ncol = N)
+      clustersZ = matrix(mu_z + sig_z *(rho_xz*pop[,2] + sqrt(1-rho_xz^2)*pop[,3]) + pop[,6], ncol = N)
+      # creating the errors relating to the variables
+      clustersU = matrix(pop[,4], ncol = N)
+      clustersV = matrix(pop[,5], ncol = N)
+      clustersW = matrix(pop[,6], ncol = N)
+      
+    } else {
+      # Using real life data
+      clustersY = matrix(data_matrix[,1], ncol = N, byrow = FALSE)
+      clustersX = matrix(data_matrix[,2], ncol = N, byrow = FALSE)
+      clustersZ = matrix(data_matrix[,3], ncol = N, byrow = FALSE)
+      
+    }
     
     # @clusterSpace is a sequence of numbers representing the index
     # of each of the clusters.
@@ -89,10 +101,13 @@ TwoStageClusterSampling <- function(
     sampledClustersY = matrix(NA, ncol = n, nrow = M)
     sampledClustersX = matrix(NA, ncol = n, nrow = M)
     sampledClustersZ = matrix(NA, ncol = n, nrow = M)
-    # The errors of the variables
-    sampledClustersU = matrix(NA, ncol = n, nrow = M)
-    sampledClustersV = matrix(NA, ncol = n, nrow = M)
-    sampledClustersW = matrix(NA, ncol = n, nrow = M)
+    
+    if (is.na(data_matrix) & m_error){
+      # The errors of the variables
+      sampledClustersU = matrix(NA, ncol = n, nrow = M)
+      sampledClustersV = matrix(NA, ncol = n, nrow = M)
+      sampledClustersW = matrix(NA, ncol = n, nrow = M)
+    }
     for (i in 1:n){
       # The main variable Y
       sampledClustersY[,i] = clustersY[,fsuClusters[i]]
@@ -101,12 +116,14 @@ TwoStageClusterSampling <- function(
       # The auxiliary variable Z
       sampledClustersZ[,i] = clustersZ[,fsuClusters[i]]
       
-      # The error of the main variable Y
-      sampledClustersU[,i] = clustersU[,fsuClusters[i]]
-      # The error of the auxiliary variable X
-      sampledClustersV[,i] = clustersV[,fsuClusters[i]]
-      # The error of the auxiliary variable Z
-      sampledClustersW[,i] = clustersW[,fsuClusters[i]]
+      if (is.na(data_matrix) & m_error){
+        # The error of the main variable Y
+        sampledClustersU[,i] = clustersU[,fsuClusters[i]]
+        # The error of the auxiliary variable X
+        sampledClustersV[,i] = clustersV[,fsuClusters[i]]
+        # The error of the auxiliary variable Z
+        sampledClustersW[,i] = clustersW[,fsuClusters[i]]
+      }
       
     }
     
@@ -136,12 +153,14 @@ TwoStageClusterSampling <- function(
     # The auxiliary variable Z
     Z = matrix(NA, ncol = n, nrow = m)
     
-    # The error of the main variable Y
-    U = matrix(NA, ncol = n, nrow = m)
-    # The error of the auxiliary variable X
-    V = matrix(NA, ncol = n, nrow = m)
-    # The error of the auxiliary variable Z
-    W = matrix(NA, ncol = n, nrow = m)
+    if (is.na(data_matrix) & m_error){
+      # The error of the main variable Y
+      U = matrix(NA, ncol = n, nrow = m)
+      # The error of the auxiliary variable X
+      V = matrix(NA, ncol = n, nrow = m)
+      # The error of the auxiliary variable Z
+      W = matrix(NA, ncol = n, nrow = m)
+    }
     
     # sampling m units from a total of M units in each cluster
     
@@ -159,12 +178,15 @@ TwoStageClusterSampling <- function(
         # The auxiliary variable Z
         Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
         
-        # The error of the main variable Y
-        U[j,i] = sampledClustersU[indexOfFinalSample[j],i]
-        # The error of the auxiliary variable X
-        V[j,i] = sampledClustersV[indexOfFinalSample[j],i]
-        # The error of the auxiliary variable Z
-        W[j,i] = sampledClustersW[indexOfFinalSample[j],i]
+        if (is.na(data_matrix) & m_error){
+          # The error of the main variable Y
+          U[j,i] = sampledClustersU[indexOfFinalSample[j],i]
+          # The error of the auxiliary variable X
+          V[j,i] = sampledClustersV[indexOfFinalSample[j],i]
+          # The error of the auxiliary variable Z
+          W[j,i] = sampledClustersW[indexOfFinalSample[j],i]
+        }
+        
       }
     }
     
@@ -269,7 +291,7 @@ TwoStageClusterSampling <- function(
     swsquare = 1/n * 1/(m - 1) *sum(swsquareUnitsY)
     
     
-    if (m_error){
+    if (is.na(data_matrix) & m_error){
       
       # Considering the variance component that incorporates the error term
       sbsquareUnitsU = c()
@@ -380,6 +402,7 @@ TwoStageClusterSampling <- function(
       SwStar_2 = Suvbar = Suvstar = Suwbar = Suwstar = 0 
       Svwbar = Svwstar = 0
       Sui_2 = Svi_2 = Swi_2 = Suvi_2 = Suwi_2 = Svwi_2 = 0
+      Suvi = Suwi = Svwi = 0
     }
     
     # The variance to be used as baseline for comparison with other MSEs
@@ -778,7 +801,7 @@ TwoStageClusterSampling <- function(
 replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
                               nPrime, mu, Sigma,
                               Case, Procedure, seed_num =4113, m_error = TRUE,
-                              aux_param_option = 1){
+                              aux_param_option = 1, data_matrix = NA){
   vYbarnm_elist = c()
   MT1opt_list = c()
   MT2opt_list = c()
@@ -788,7 +811,7 @@ replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
     rep_i = TwoStageClusterSampling(M, N, m, n, p, mPrime,
                                     nPrime, mu, Sigma,
                                     Case, Procedure, seed_num, m_error,
-                                    aux_param_option)
+                                    aux_param_option, data_matrix)
 
     vYbarnm_elist[i] = rep_i$vYbarnm_e
     MT1opt_list[i] = rep_i$MT1opt
@@ -812,24 +835,24 @@ replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
                 anyNegative_Ibro = any(MT2opt_list<0), Rel_Performance = Rel_Performance)))
 }
 
-Sigma <- matrix(c(20, 0, 0, 0, 0, 0, 
-                  0, 60, 0, 0, 0, 0, 
-                  0, 0, 10, 0, 0, 0,
+Sigma <- matrix(c(2, 0, 0, 0, 0, 0, 
+                  0, 6, 0, 0, 0, 0, 
+                  0, 0, 3, 0, 0, 0,
                   0, 0, 0, 5, 0, 0,
                   0, 0, 0, 0, 3, 0,
                   0, 0, 0, 0, 0, 7), 6,6)
 
-aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
-                        n = 5, p = 0.05, mPrime = 8,
+aa <- replicateSampling(nRep = 100, M = 100, N = 10, m = 50, 
+                        n = 5, p = c(rep(0.15,4), 0.05), mPrime = 60,
                         nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
                         Case = "B", Procedure = 2, seed_num = 531, m_error = TRUE,
-                        aux_param_option = 17)
+                        aux_param_option = 4, data_matrix = NA)
 
-ab <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
-                        n = 5, p = 0.05, mPrime = 8,
+ab <- replicateSampling(nRep = 100, M = 100, N = 10, m = 50, 
+                        n = 5, p = c(rep(0.15,4), 0.05), mPrime = 60,
                         nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
                         Case = "B", Procedure = 2, seed_num = 531, m_error = FALSE,
-                        aux_param_option = 17)
+                        aux_param_option = 4)
 
 # aux_param_options that result in warning messages are: 
 # 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16
