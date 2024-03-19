@@ -10,9 +10,15 @@
 # @param mu is a vector of means for the variables y, x, and z
 # @param Sigma is a symmetric matrix. It is the variance-covariance matrix of the variables
 # @param Case takes only two possible values: "A" or "B"
+# @param m_error is a boolean variable that indicates if measurement error is present or not
+# @param aux_param_option is a value that specifies the preferred option for auxiliary parameters
+
+# To use this function, ensure you have the 'moments' package installed on your local machine
+
 
 TwoStageClusterSampling <- function(
-    M, N, m, n, p, mPrime, nPrime, mu, Sigma, Case = "A", Procedure, seed_num=4113  
+    M, N, m, n, p, mPrime, nPrime, mu, Sigma, Case = "A", Procedure, seed_num=4113,
+    m_error = TRUE, aux_param_option = 1
 ){
   # Check that the number of clusters to be sampled does not 
   # exceed the total number of clusters in the pop
@@ -28,7 +34,7 @@ TwoStageClusterSampling <- function(
   else if (!(length(p) == 1 | length(p) == n)) return("Error: p should either contain 1 or n entries")
   else if (!(length(mu) == ncol(Sigma)) | !(length(mu) == nrow(Sigma))) return("length of mu and dim of Sigma inconsistent")
   else {
-    # Defining some of the derived constants needed in the various computations
+    # --- Defining some of the derived constants needed in the various computations
     #p = r/m
     q = 1 - p
     f = 1/n - 1/N
@@ -59,9 +65,13 @@ TwoStageClusterSampling <- function(
     sig_y = sqrt(Sigma[1,1]); sig_x = sqrt(Sigma[2,2]); sig_z = sqrt(Sigma[3,3]);
     rho_xy = 0.7; rho_xz = 0.8
     
-    clustersY = matrix(mu_y + sig_y *(rho_xy*pop[,2] + sqrt(1-rho_xy^2)*pop[,1]), ncol = N)
-    clustersX = matrix(mu_x + sig_x *pop[,2], ncol = N)
-    clustersZ = matrix(mu_z + sig_z *(rho_xz*pop[,2] + sqrt(1-rho_xz^2)*pop[,3]), ncol = N)
+    clustersY = matrix(mu_y + sig_y *(rho_xy*pop[,2] + sqrt(1-rho_xy^2)*pop[,1]) + pop[,4], ncol = N)
+    clustersX = matrix(mu_x + sig_x *pop[,2] + pop[,5], ncol = N)
+    clustersZ = matrix(mu_z + sig_z *(rho_xz*pop[,2] + sqrt(1-rho_xz^2)*pop[,3]) + pop[,6], ncol = N)
+    # creating the errors relating to the variables
+    clustersU = matrix(pop[,4], ncol = N)
+    clustersV = matrix(pop[,5], ncol = N)
+    clustersW = matrix(pop[,6], ncol = N)
     
     # @clusterSpace is a sequence of numbers representing the index
     # of each of the clusters.
@@ -79,6 +89,10 @@ TwoStageClusterSampling <- function(
     sampledClustersY = matrix(NA, ncol = n, nrow = M)
     sampledClustersX = matrix(NA, ncol = n, nrow = M)
     sampledClustersZ = matrix(NA, ncol = n, nrow = M)
+    # The errors of the variables
+    sampledClustersU = matrix(NA, ncol = n, nrow = M)
+    sampledClustersV = matrix(NA, ncol = n, nrow = M)
+    sampledClustersW = matrix(NA, ncol = n, nrow = M)
     for (i in 1:n){
       # The main variable Y
       sampledClustersY[,i] = clustersY[,fsuClusters[i]]
@@ -86,6 +100,14 @@ TwoStageClusterSampling <- function(
       sampledClustersX[,i] = clustersX[,fsuClusters[i]]
       # The auxiliary variable Z
       sampledClustersZ[,i] = clustersZ[,fsuClusters[i]]
+      
+      # The error of the main variable Y
+      sampledClustersU[,i] = clustersU[,fsuClusters[i]]
+      # The error of the auxiliary variable X
+      sampledClustersV[,i] = clustersV[,fsuClusters[i]]
+      # The error of the auxiliary variable Z
+      sampledClustersW[,i] = clustersW[,fsuClusters[i]]
+      
     }
     
     # @sampleSpace is a sequence of numbers representing the index
@@ -114,6 +136,13 @@ TwoStageClusterSampling <- function(
     # The auxiliary variable Z
     Z = matrix(NA, ncol = n, nrow = m)
     
+    # The error of the main variable Y
+    U = matrix(NA, ncol = n, nrow = m)
+    # The error of the auxiliary variable X
+    V = matrix(NA, ncol = n, nrow = m)
+    # The error of the auxiliary variable Z
+    W = matrix(NA, ncol = n, nrow = m)
+    
     # sampling m units from a total of M units in each cluster
     
     # This looping approach ensures that for each unit selected,
@@ -129,6 +158,13 @@ TwoStageClusterSampling <- function(
         X[j,i] = sampledClustersX[indexOfFinalSample[j],i]
         # The auxiliary variable Z
         Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
+        
+        # The error of the main variable Y
+        U[j,i] = sampledClustersU[indexOfFinalSample[j],i]
+        # The error of the auxiliary variable X
+        V[j,i] = sampledClustersV[indexOfFinalSample[j],i]
+        # The error of the auxiliary variable Z
+        W[j,i] = sampledClustersW[indexOfFinalSample[j],i]
       }
     }
     
@@ -232,12 +268,223 @@ TwoStageClusterSampling <- function(
     }
     swsquare = 1/n * 1/(m - 1) *sum(swsquareUnitsY)
     
-    vYbarnm = f * sbsquare + 1/n *fm*swsquare
+    
+    if (m_error){
+      
+      # Considering the variance component that incorporates the error term
+      sbsquareUnitsU = c()
+      for (i in 1:n){
+        sbsquareUnitsU[i] = (mean(U[,i]) - mean(U))^2
+      }
+      sbsquare_e = 1/(n - 1) *sum(sbsquareUnitsU)
+      
+      # Calculating mean square within the clusters
+      swsquareUnitsU = c()
+      for (i in 1:n){
+        swsquareUnitsU[i] = sum((U[,i] - mean(U[,i]))^2)
+      }
+      swsquare_e = 1/n * 1/(m - 1) *sum(swsquareUnitsU)
+      
+      
+      #--- Incorporating the error components
+      # Computing the several components of the estimators
+      # Components relating to error variable U
+      Sui_2 <- c()
+      for (i in 1:n){
+        Sui_2[i] = sum((U[,i] - mean(U[,i]))^2)/(m-1)
+      }
+      Subar_2 <- mean(Sui_2)
+      
+      Suibar <- c()
+      for (i in 1:n){
+        Suibar[i] = mean(U[,i])
+      }
+      SuStar_2 <- sum((Suibar - mean(U))^2)/(n-1)
+      
+      # Components relating to error variable V
+      Svi_2 <- c()
+      for (i in 1:n){
+        Svi_2[i] = sum((V[,i] - mean(V[,i]))^2)/(m-1)
+      }
+      Svbar_2 <- mean(Svi_2)
+      
+      Svibar <- c()
+      for (i in 1:n){
+        Svibar[i] = mean(V[,i])
+      }
+      SvStar_2 <- sum((Svibar - mean(V))^2)/(n-1)
+      
+      # Components relating to error variable W
+      Swi_2 <- c()
+      for (i in 1:n){
+        Swi_2[i] = sum((W[,i] - mean(W[,i]))^2)/(m-1)
+      }
+      Swbar_2 <- mean(Swi_2)
+      
+      Swibar <- c()
+      for (i in 1:n){
+        Swibar[i] = mean(W[,i])
+      }
+      SwStar_2 <- sum((Swibar - mean(W))^2)/(n-1)
+      
+      # Components relating to error variables U and V
+      Suvi <- c()
+      for (i in 1:n){
+        Ui = U[,i] - mean(U[,i]); Vi = V[,i] - mean(V[,i])
+        # the 'crossprod' function computes the cross product of two vectors and returns the 
+        # result as a 1 by 1 matrix
+        # the 'drop' function converts the 1 by 1 matrix to a scalar
+        Suvi[i] = sum(drop(crossprod(Ui, Vi)))/(m-1)
+      }
+      Suvbar <- mean(Suvi)
+      
+      Suvistar <- c()
+      for (i in 1:n){
+        Suvistar[i] = drop(crossprod((mean(U[,i]) - mean(U)), (mean(V[,i]) - mean(V))))
+      }
+      Suvstar <- sum(Suvistar)/(n-1)
+      
+      # Components relating to error variables U and W
+      Suwi <- c()
+      for (i in 1:n){
+        Ui = U[,i] - mean(U[,i]); Wi = W[,i] - mean(W[,i])
+        Suwi[i] = sum(drop(crossprod(Ui, Wi)))/(m-1)
+      }
+      Suwbar <- mean(Suwi)
+      
+      Suwistar <- c()
+      for (i in 1:n){
+        Suwistar[i] = drop(crossprod((mean(U[,i]) - mean(U)), (mean(W[,i]) - mean(W))))
+      }
+      Suwstar <- sum(Suwistar)/(n-1)
+      
+      # Components relating to error variables V and W
+      Svwi <- c()
+      for (i in 1:n){
+        Vi = V[,i] - mean(V[,i]); Wi = W[,i] - mean(W[,i])
+        Svwi[i] = sum(drop(crossprod(Vi, Wi)))/(m-1)
+      }
+      Svwbar <- mean(Svwi)
+      
+      Svwistar <- c()
+      for (i in 1:n){
+        Svwistar[i] = drop(crossprod((mean(V[,i]) - mean(V)), (mean(W[,i]) - mean(W))))
+      }
+      Svwstar <- sum(Svwistar)/(n-1)  
+      
+    }else {
+      # Where the error term is not incorporated
+      sbsquare_e = swsquare_e = 0
+      
+      Subar_2 = SuStar_2 = Svbar_2 = SvStar_2 = Swbar_2 = 0
+      SwStar_2 = Suvbar = Suvstar = Suwbar = Suwstar = 0 
+      Svwbar = Svwstar = 0
+      Sui_2 = Svi_2 = Swi_2 = Suvi_2 = Suwi_2 = Svwi_2 = 0
+    }
+    
+    # The variance to be used as baseline for comparison with other MSEs
+    vYbarnm_e = f * (sbsquare + sbsquare_e) + 1/n *fm*(swsquare + swsquare_e)
+    
+    # Compute other constants relating to Skewness and Kurtosis
+    # We load the moments library to enable us calculate the skewness and kurtosis
+    library(moments)
+    # Coefficient of Skewness of variable X
+    B1_X2 = skewness(X)
+    # Coefficient of Kurtosis of variable X
+    B2_X2 = kurtosis(X)
+    
+    detach("package:moments", unload = TRUE)
+    # Standard deviation of variable X
+    S_X2 = sd(X)
+    # Coefficient of variation of variable X
+    C_X2 = S_X2/mean(X)
+    
+    # Setting the Auxiliary Parameter Options
+    if (aux_param_option == 1){
+      A_X2 = 1; B_X2 = 0
+    } else if (aux_param_option == 2){
+      A_X2 = 1; B_X2 = B1_X2
+    } else if (aux_param_option == 3){
+      A_X2 = 1; B_X2 = B2_X2
+    } else if (aux_param_option == 4){
+      A_X2 = 1; B_X2 = C_X2
+    } else if (aux_param_option == 5){
+      A_X2 = 1; B_X2 = S_X2
+    } else if (aux_param_option == 6){
+      A_X2 = B1_X2; B_X2 = B2_X2
+    } else if (aux_param_option == 7){
+      A_X2 = B1_X2; B_X2 = C_X2
+    } else if (aux_param_option == 8){
+      A_X2 = B1_X2; B_X2 = S_X2
+    } else if (aux_param_option == 9){
+      A_X2 = B2_X2; B_X2 = B1_X2
+    } else if (aux_param_option == 10){
+      A_X2 = B2_X2; B_X2 = C_X2
+    } else if (aux_param_option == 11){
+      A_X2 = B2_X2; B_X2 = S_X2
+    } else if (aux_param_option == 12){
+      A_X2 = C_X2; B_X2 = B1_X2
+    } else if (aux_param_option == 13){
+      A_X2 = C_X2; B_X2 = B2_X2
+    } else if (aux_param_option == 14){
+      A_X2 = C_X2; B_X2 = S_X2
+    } else if (aux_param_option == 15){
+      A_X2 = S_X2; B_X2 = B1_X2
+    } else if (aux_param_option == 16){
+      A_X2 = S_X2; B_X2 = B2_X2
+    } else if (aux_param_option == 17){
+      A_X2 = S_X2; B_X2 = C_X2
+    } else{ return("Auxiliary Parameter Option should lie between 1 - 17")}
+    
+    theta_X = A_X2*mean(Z)/(A_X2*mean(Z) + B_X2)
     
     if (length(p) == 1){
       
+      # Computations for Ibrahim's Estimator
+      c0e = (f*(S0Star_2 + SuStar_2) + 1/n*1/n*fmr*(S0bar_2 + Subar_2))/mean(Y)^2
+      
+      c1e = (f*(S1Star_2 + SvStar_2) + 1/n*1/n*fmr*(S1bar_2 + Svbar_2))/mean(X)^2
+      
+      c2e = fPrime*(S1Star_2 + SvStar_2)/mean(X)^2
+      
+      c3e = (f*(S2Star_2 + SwStar_2) + 1/n*fm*(S2bar_2 + Swbar_2))/mean(Z)^2
+      
+      c4e = (f*(S01star + Suvstar) + 1/n*1/n*fmr*(S01bar + Suvbar))/(mean(Y)*mean(X))
+      
+      c5e = fPrime*(S01star + Suvstar)/(mean(Y)*mean(X))
+      
+      c6e = (f*(S02star + Suwstar) + 1/n*fm*(S02bar + Suwbar))/(mean(Y)*mean(Z))
+      
+      c7e = (f*(S12star + Svwstar) + 1/n*fm*(S12bar + Svwbar))/(mean(X)*mean(Z))
+      
+      c8e = fPrime*(S12star + Svwstar)/(mean(X)*mean(Z))
+      
+      c9e = (f*(S0Star_2 + SuStar_2) + 1/n*fm*(S0bar_2 + Subar_2))/mean(Y)^2
+      
+      c10e = (f*(S1Star_2 + SvStar_2) + 1/n*fmPrimeR*(S1bar_2 + Svbar_2))/mean(X)^2
+      
+      c11e = (f*(S2Star_2 + SwStar_2) + 1/n*fmPrime*(S2bar_2 + Swbar_2))/mean(Z)^2
+      
+      c12e = (f*(S1Star_2 + SvStar_2) + 1/n*fm*(S1bar_2 + Svbar_2))/mean(X)^2
+      
+      c13e = (f*(S01star + Suvstar) + 1/n*fmPrimeR*(S01bar + Suvbar))/(mean(Y)*mean(X))
+      
+      c14e = (f*(S02star + Suwstar) + 1/n*fmPrime*(S02bar + Suwbar))/(mean(Y)*mean(Z))
+      
+      c15e = (f*(S01star + Suvstar) + 1/n*fm*(S01bar + Suvbar))/(mean(Y)*mean(X))
+      
+      c16e = (f*(S12star + Svwstar) + 1/n*fmPrime*(S12bar + Svwbar))/(mean(X)*mean(Z))
+      
+      c17e = (f*(S1Star_2 + SvStar_2) + 1/n*fmPrimeR*(S1bar_2 + Svbar_2))/mean(X)^2
+      
+      c18e = c16e
+      
       if (Procedure == 1){
         if (Case == "A"){
+          #-- Note that
+          # 'mt1_... stands for Maji while
+          # 'mt2_... stands for Ibrahim
+          
           mt1_bopt_num = 2*(f1*S01star + 1/n*fmr*S01bar) - 
             mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
             mean(Y)/mean(Z)*(f1*S12star + 1/n*fm*S12bar) +
@@ -254,6 +501,26 @@ TwoStageClusterSampling <- function(
             2*mt1_bopt*(f1*S01star + 1/n*fmr*S01bar) +
             ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
             ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
+          
+          # Now the estimator proposed by Ibrahim
+          mt2_bopt_num = mean(Y)*(
+            p^2*(theta_X + 1)^2*c3e + c4e - c5e -p*(theta_X + 1)* (c6e + c7e - c8e)  
+          )
+          
+          mt2_bopt_den = mean(X)*(
+            c1e - c2e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*(c7e - c8e)
+          )
+          
+          mt2_bopt = mt2_bopt_num / mt2_bopt_den
+          
+          MT2opt = mean(Y)^2*(
+            c0e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*c6e
+          ) - 2*mt2_bopt*mean(Y)*mean(X)*(
+            p^2*(theta_X + 1)^2*c3e + c4e - c5e - p*(theta_X + 1)* (c6e + c7e - c8e)
+          ) + mt2_bopt^2*mean(X)^2*(
+            c1e - c2e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*(c7e - c8e)
+          )
+          
           
         } else if (Case == "B"){
           mt1_bopt_num = 2*(f*S01star + 1/n*fmr*S01bar) - 
@@ -273,6 +540,25 @@ TwoStageClusterSampling <- function(
             ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
             ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
           
+          # Computation for Ibrahim's Estimator
+          mt2_bopt_num = mean(Y)*(
+            p^2*(theta_X + 1)^2*c3e + c4e -(theta_X + 1)* p*(c6e + c7e)  
+          )
+          
+          mt2_bopt_den = mean(X)*(
+            c1e + c2e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*c7e
+          )
+          
+          mt2_bopt = mt2_bopt_num / mt2_bopt_den
+          
+          MT2opt = mean(Y)^2*(
+            c0e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*c6e
+          ) - 2*mt2_bopt*mean(Y)*mean(X)*(
+            p^2*(theta_X + 1)^2*c3e + c4e - (theta_X + 1)* p*(c6e + c7e)
+          ) + mt2_bopt^2*mean(X)^2*(
+            c1e + c2e + p^2*(theta_X + 1)^2*c3e - 2*p*(theta_X + 1)*c7e
+          )
+          
         }
         
       }else if (Procedure == 2){
@@ -288,9 +574,70 @@ TwoStageClusterSampling <- function(
           1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
           2*mt1_bopt/n*(fmPrimeR -fm)*S01bar -
           mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
+        
+        # Computation of Ibrahim's estimator
+        mt2_bopt_num = mean(Y)*(
+          (theta_X + 1)* p*c14e - c13e + c15e  
+        )
+        
+        mt2_bopt_den = mean(X)*(
+          c10e + p^2*(theta_X + 1)^2*c11e + c12e - 2*c17e
+        )
+        
+        mt2_bopt = mt2_bopt_num / mt2_bopt_den
+        
+        MT2opt = mean(Y)^2*c9e + mt2_bopt^2*mean(X)^2*(
+          c10e + p^2*(theta_X + 1)^2*c11e + c12e - 2*c17e
+        ) + 2*mt2_bopt*mean(Y)*mean(X)*(
+          c13e - (theta_X + 1)* p*c14e - c15e
+        )
+        
       }
       
     } else{
+      
+      # Computations for Ibrahim's Estimator
+      c0e = (f*(S0Star_2 + SuStar_2) + 
+               1/n*1/n*sum(drop(crossprod(fmr,S0i_2 + Sui_2))))/mean(Y)^2
+      
+      c1e = (f*(S1Star_2 + SvStar_2) + 
+               1/n*1/n*sum(drop(crossprod(fmr,S1i_2 + Svi_2))))/mean(X)^2
+      
+      c2e = fPrime*(S1Star_2 + SvStar_2)/mean(X)^2
+      
+      c3e = (f*(S2Star_2 + SwStar_2) + 1/n*fm*(S2bar_2 + Swbar_2))/mean(Z)^2
+      
+      c4e = (f*(S01star + Suvstar) + 
+               1/n*1/n*sum(drop(crossprod(fmr,S01i + Suvi))))/(mean(Y)*mean(X))
+      
+      c5e = fPrime*(S01star + Suvstar)/(mean(Y)*mean(X))
+      
+      c6e = (f*(S02star + Suwstar) + 1/n*fm*(S02bar + Suwbar))/(mean(Y)*mean(Z))
+      
+      c7e = (f*(S12star + Svwstar) + 1/n*fm*(S12bar + Svwbar))/(mean(X)*mean(Z))
+      
+      c8e = fPrime*(S12star + Svwstar)/(mean(X)*mean(Z))
+      
+      c9e = (f*(S0Star_2 + SuStar_2) + 1/n*fm*(S0bar_2 + Subar_2))/mean(Y)^2
+      
+      c10e = (f*(S1Star_2 + SvStar_2) + 
+                1/n*1/n*sum(drop(crossprod(fmPrimeR,S1i_2 + Svi_2))))/mean(X)^2
+      
+      c11e = (f*(S2Star_2 + SwStar_2) + 1/n*fmPrime*(S2bar_2 + Swbar_2))/mean(Z)^2
+      
+      c12e = (f*(S1Star_2 + SvStar_2) + 1/n*fm*(S1bar_2 + Svbar_2))/mean(X)^2
+      
+      c13e = (f*(S01star + Suvstar) + 
+                1/n*1/n*sum(drop(crossprod(fmPrimeR,S01i + Suvi))))/(mean(Y)*mean(X))
+      
+      c14e = (f*(S02star + Suwstar) + 1/n*fmPrime*(S02bar + Suwbar))/(mean(Y)*mean(Z))
+      
+      c15e = (f*(S01star + Suvstar) + 1/n*fm*(S01bar + Suvbar))/(mean(Y)*mean(X))
+      
+      c16e = (f*(S12star + Svwstar) + 1/n*fmPrime*(S12bar + Svwbar))/(mean(X)*mean(Z))
+      
+      c17e = c10e
+      
       
       if (Procedure == 1){
         if (Case == "A"){
@@ -312,6 +659,32 @@ TwoStageClusterSampling <- function(
             ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
             ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f1*S12star + 1/n*fm*S12bar)
           
+          
+          # Computations for Ibrahim's Estimator
+          
+          mt2_bopt_num = mean(Y)*(
+            (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e + c4e - 
+              c5e -sum(p)/(n*m)*(theta_X + 1)* (c6e + c7e - c8e)  
+          )
+          
+          mt2_bopt_den = mean(X)*(
+            c1e - c2e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)* (c7e - c8e)
+          )
+          
+          mt2_bopt = mt2_bopt_num / mt2_bopt_den
+          
+          MT2opt = mean(Y)^2*(
+            c0e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2* c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)* c6e
+          ) - 2*mt2_bopt*mean(Y)*mean(X)*(
+            (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e + c4e - c5e - 
+              sum(p)/(n*m)*(theta_X + 1)*(c6e + c7e - c8e)
+          ) + mt2_bopt^2*mean(X)^2*(
+            c1e - c2e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)* (c7e - c8e)
+          )
+          
         } else if (Case == "B"){
           mt1_bopt_num = 2*(f*S01star + 1/n*1/n*sum(drop(crossprod(fmr,S01i)))) - 
             mean(X)/mean(Z)*(f*S02star + 1/n*fm*S02bar) -
@@ -331,6 +704,31 @@ TwoStageClusterSampling <- function(
             ((mt1_bopt*mean(X) - mean(Y))/mean(Z))*(f*S02star + 1/n*fm*S02bar) +
             ((mt1_bopt*mean(Y) - mt1_bopt^2*mean(X))/mean(Z))*(f*S12star + 1/n*fm*S12bar)
           
+          # Computations for Ibrahim's Estimator
+          
+          mt2_bopt_num = mean(Y)*(
+            (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e + c4e -
+              sum(p)/(n*m)*(theta_X + 1)* (c6e + c7e)  
+          )
+          
+          mt2_bopt_den = mean(X)*(
+            c1e + c2e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)*c7e
+          )
+          
+          mt2_bopt = mt2_bopt_num / mt2_bopt_den
+          
+          MT2opt = mean(Y)^2*(
+            c0e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2* c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)* c6e
+          ) - 2*mt2_bopt*mean(Y)*mean(X)*(
+            (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e + c4e - 
+              sum(p)/(n*m)*(theta_X + 1)*(c6e + c7e)
+          ) + mt2_bopt^2*mean(X)^2*(
+            c1e + c2e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c3e - 
+              2*sum(p)/(n*m)*(theta_X + 1)*c7e
+          )
+          
         }
         
       }else if (Procedure == 2){
@@ -347,48 +745,95 @@ TwoStageClusterSampling <- function(
           1/4*(mt1_bopt*mean(X)/mean(Z))^2*(f*S2Star_2 + 1/n*fmPrime*S2bar_2) + 
           2*mt1_bopt/n*(1/n*sum(drop(crossprod(fmPrimeR, S01i))) -fm*S01bar) -
           mt1_bopt*mean(X)/mean(Z)*(f*S02star + 1/n*fmPrime*S02bar) 
+        
+        # Computations for Ibrahim's Estimator
+        
+        mt2_bopt_num = mean(Y)*(
+          sum(p)/(n*m)*(theta_X + 1)*c14e - c13e + c15e  
+        )
+        
+        mt2_bopt_den = mean(X)*(
+          c10e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c11e + c12e - 2*c17e
+        )
+        
+        mt2_bopt = mt2_bopt_num / mt2_bopt_den
+        
+        MT2opt = mean(Y)^2*c9e + mt2_bopt^2*mean(X)^2*(
+          c10e + (m*var(p) + 1/n*sum(p))*(theta_X + 1)^2*c11e + c12e - 2*c17e
+        ) + 2*mt2_bopt*mean(Y)*mean(X)*(
+          c13e - sum(p)/(n*m)*(theta_X + 1)*c14e - c15e
+        )
+        
       }
       
     }
     
     return (list(clustersY = clustersY, indexOfFinalSample = indexOfFinalSample, 
                  indexOfFinalSample = indexOfFinalSample, sampledClustersY = sampledClustersY, Y = Y,
-                 vYbarnm = vYbarnm, MT1opt = MT1opt))
+                 vYbarnm_e = vYbarnm_e, MT1opt = MT1opt, MT2opt = MT2opt))
   }
 }
 
 # This function performs the sampling task multiple times and takes the average
 replicateSampling <- function(nRep, M, N, m, n, p, mPrime,
                               nPrime, mu, Sigma,
-                              Case, Procedure, seed_num =4113){
-  vYbarnm_list = c()
+                              Case, Procedure, seed_num =4113, m_error = TRUE,
+                              aux_param_option = 1){
+  vYbarnm_elist = c()
   MT1opt_list = c()
+  MT2opt_list = c()
   
   set.seed(seed_num)
   for (i in 1:nRep){
     rep_i = TwoStageClusterSampling(M, N, m, n, p, mPrime,
                                     nPrime, mu, Sigma,
-                                    Case, Procedure, seed_num)
-    vYbarnm_list[i] = rep_i$vYbarnm
+                                    Case, Procedure, seed_num, m_error,
+                                    aux_param_option)
+    
+    vYbarnm_elist[i] = rep_i$vYbarnm_e
     MT1opt_list[i] = rep_i$MT1opt
+    MT2opt_list[i] = rep_i$MT2opt
     
   }
-  PRE = mean(vYbarnm_list)/mean(MT1opt_list)*100
-  LOSS = (mean(MT1opt_list) - mean(vYbarnm_list))/mean(MT1opt_list)*100
+  # PRE = mean(vYbarnm_list)/mean(MT1opt_list)*100
+  # LOSS = (mean(MT1opt_list) - mean(vYbarnm_list))/mean(MT1opt_list)*100
+  PRE_Maji = mean(vYbarnm_elist)/mean(MT1opt_list)*100
+  LOSS_Maji = (mean(MT1opt_list) - mean(vYbarnm_elist))/mean(MT1opt_list)*100
   
-  return(c(list(vYbarnm = mean(vYbarnm_list), MT1opt = mean(MT1opt_list),
-                vYbarnm_list = vYbarnm_list[1:10], 
-                MT1opt_list = MT1opt_list[1:10], anyNegative = any(MT1opt_list<0),
-                PRE = PRE, LOSS = LOSS)))
+  PRE_Ibro = mean(vYbarnm_elist)/mean(MT2opt_list)*100
+  LOSS_Ibro = (mean(MT2opt_list) - mean(vYbarnm_elist))/mean(MT2opt_list)*100
+  
+  Rel_Performance = matrix(c(PRE_Maji, PRE_Ibro, LOSS_Maji, LOSS_Ibro), nrow = 1, 
+                           dimnames = list(c(), c("PRE_Maji", "PRE_Ibro", 
+                                                  "LOSS_Maji", "LOSS_Ibro")))
+  
+  return(c(list(vYbarnm_elist = vYbarnm_elist[1:10], 
+                MT1opt_list = MT1opt_list[1:10], anyNegative_Maji = any(MT1opt_list<0),
+                anyNegative_Ibro = any(MT2opt_list<0), Rel_Performance = Rel_Performance)))
 }
 
-Sigma <- matrix(c(20, 0, 0, 0, 60, 0, 0, 0 , 10), 3,3)
+Sigma <- matrix(c(20, 0, 0, 0, 0, 0, 
+                  0, 60, 0, 0, 0, 0, 
+                  0, 0, 10, 0, 0, 0,
+                  0, 0, 0, 5, 0, 0,
+                  0, 0, 0, 0, 3, 0,
+                  0, 0, 0, 0, 0, 7), 6,6)
 
 aa <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
-                        n = 5, p = c(.05, rep(.1, 4)), mPrime = 8,
-                        nPrime = 7, mu = c(20, 50, 40), Sigma = Sigma,
-                        Case = "B", Procedure = 1, seed_num = 541)
+                        n = 5, p = 0.05, mPrime = 8,
+                        nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
+                        Case = "B", Procedure = 2, seed_num = 531, m_error = TRUE,
+                        aux_param_option = 17)
 
-aa
+ab <- replicateSampling(nRep = 100, M = 10, N = 10, m = 7, 
+                        n = 5, p = 0.05, mPrime = 8,
+                        nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
+                        Case = "B", Procedure = 2, seed_num = 531, m_error = FALSE,
+                        aux_param_option = 17)
 
+# aux_param_options that result in warning messages are: 
+# 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16
+
+aa$Rel_Performance
+ab$Rel_Performance
 
