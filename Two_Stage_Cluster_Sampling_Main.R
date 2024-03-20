@@ -864,11 +864,11 @@ ab$Rel_Performance
 
 # Using the real life data used by Maji
 # Read in the data saved as a csv file
-realData = read.csv(file = "~/Documents/Spomary-Files/Works/Two_Stage_Cluster_Sampling_Simulation/CommHospitalsData.csv")
-# realData = read.csv(file = "~/Two_Stage_Cluster_Sampling_Simulation/CommHospitalsData.csv")
+realData = read.csv("https://raw.githubusercontent.com/spomaria/Two_Stage_Cluster_Sampling_Simulation/main/CommHospitalsData.csv")
+# realData = read.csv(file = "https://github.com/spomaria/Two_Stage_Cluster_Sampling_Simulation/blob/main/CommHospitalsData.csv")
 
 # convert the csv file into a matrix
-
+realData
 real_data = matrix(nrow = 50, ncol = 3)
 real_data
 real_data[,1] = realData$Y
@@ -876,8 +876,6 @@ real_data[,2] = realData$X
 # remove the commas from the numbers in the data frame
 real_data[,3] = as.numeric(gsub(",", "", realData$Z))
 
-is.na(real_data)
-is.matrix(NA)
 # using the real data set
 aa <- replicateSampling(nRep = 100, M = 10, N = 5, m = 6, 
                         n = 3, p = 0.15, mPrime = 8,
