@@ -33,7 +33,7 @@ TwoStageClusterSampling <- function(
   else if (any(p <= 0) | any(p >= 1)) return("Error: p should range exclusively between 0 and 1")
   else if (!(length(p) == 1 | length(p) == n)) return("Error: p should either contain 1 or n entries")
   else if (!(length(mu) == ncol(Sigma)) | !(length(mu) == nrow(Sigma))) return("length of mu and dim of Sigma inconsistent")
-  #else if (!(is.na(data_matrix) | ncol(data_matrix) == 3)) return("Error: data_matrix should have 3 columns if it exists")
+  #else if (!(!is.matrix(data_matrix) | ncol(data_matrix) == 3)) return("Error: data_matrix should have 3 columns if it exists")
   else {
     # --- Defining some of the derived constants needed in the various computations
     #p = r/m
@@ -46,7 +46,7 @@ TwoStageClusterSampling <- function(
     fmr = 1/(m * q + 2 * p) - 1/M
     fmPrimeR = 1/(mPrime * q + 2 * p) - 1/M
     
-    if (is.na(data_matrix)){
+    if (!is.matrix(data_matrix)){
       # Where no real life data is provided, the computer simulates data from the 
       # normal distribution
       totalSim = M * N
@@ -102,7 +102,7 @@ TwoStageClusterSampling <- function(
     sampledClustersX = matrix(NA, ncol = n, nrow = M)
     sampledClustersZ = matrix(NA, ncol = n, nrow = M)
     
-    if (is.na(data_matrix) & m_error){
+    if (!is.matrix(data_matrix) & m_error){
       # The errors of the variables
       sampledClustersU = matrix(NA, ncol = n, nrow = M)
       sampledClustersV = matrix(NA, ncol = n, nrow = M)
@@ -116,7 +116,7 @@ TwoStageClusterSampling <- function(
       # The auxiliary variable Z
       sampledClustersZ[,i] = clustersZ[,fsuClusters[i]]
       
-      if (is.na(data_matrix) & m_error){
+      if (!is.matrix(data_matrix) & m_error){
         # The error of the main variable Y
         sampledClustersU[,i] = clustersU[,fsuClusters[i]]
         # The error of the auxiliary variable X
@@ -153,7 +153,7 @@ TwoStageClusterSampling <- function(
     # The auxiliary variable Z
     Z = matrix(NA, ncol = n, nrow = m)
     
-    if (is.na(data_matrix) & m_error){
+    if (!is.matrix(data_matrix) & m_error){
       # The error of the main variable Y
       U = matrix(NA, ncol = n, nrow = m)
       # The error of the auxiliary variable X
@@ -178,7 +178,7 @@ TwoStageClusterSampling <- function(
         # The auxiliary variable Z
         Z[j,i] = sampledClustersZ[indexOfFinalSample[j],i]
         
-        if (is.na(data_matrix) & m_error){
+        if (!is.matrix(data_matrix) & m_error){
           # The error of the main variable Y
           U[j,i] = sampledClustersU[indexOfFinalSample[j],i]
           # The error of the auxiliary variable X
@@ -291,7 +291,7 @@ TwoStageClusterSampling <- function(
     swsquare = 1/n * 1/(m - 1) *sum(swsquareUnitsY)
     
     
-    if (is.na(data_matrix) & m_error){
+    if (!is.matrix(data_matrix) & m_error){
       
       # Considering the variance component that incorporates the error term
       sbsquareUnitsU = c()
@@ -860,3 +860,36 @@ ab <- replicateSampling(nRep = 100, M = 100, N = 10, m = 50,
 aa$Rel_Performance
 ab$Rel_Performance
 
+
+
+# Using the real life data used by Maji
+# Read in the data saved as a csv file
+realData = read.csv(file = "~/Documents/Spomary-Files/Works/Two_Stage_Cluster_Sampling_Simulation/CommHospitalsData.csv")
+# realData = read.csv(file = "~/Two_Stage_Cluster_Sampling_Simulation/CommHospitalsData.csv")
+
+# convert the csv file into a matrix
+
+real_data = matrix(nrow = 50, ncol = 3)
+real_data
+real_data[,1] = realData$Y
+real_data[,2] = realData$X
+# remove the commas from the numbers in the data frame
+real_data[,3] = as.numeric(gsub(",", "", realData$Z))
+
+is.na(real_data)
+is.matrix(NA)
+# using the real data set
+aa <- replicateSampling(nRep = 100, M = 10, N = 5, m = 6, 
+                        n = 3, p = 0.15, mPrime = 8,
+                        nPrime = 4, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
+                        Case = "A", Procedure = 1, seed_num = 531, m_error = TRUE,
+                        aux_param_option = 4, data_matrix = real_data)
+
+a_e <- replicateSampling(nRep = 100, M = 5, N = 10, m = 3, 
+                        n = 5, p = 0.05, mPrime = 4,
+                        nPrime = 7, mu = c(20, 50, 40, 0, 0, 0), Sigma = Sigma,
+                        Case = "A", Procedure = 1, seed_num = 531, m_error = FALSE,
+                        aux_param_option = 4, data_matrix = real_data)
+
+aa$Rel_Performance
+a_e$Rel_Performance
